@@ -1,9 +1,33 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { DatabaseBootstrap } from './database/database-bootstrap';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
+
+  // ============================================================
+  // STEP 1: PostgreSQL Auto-Setup
+  // ============================================================
+  // Check if PostgreSQL is running, create DB if needed, run migrations
+  logger.log('🔍 Checking PostgreSQL setup...');
+  
+  const dbBootstrap = new DatabaseBootstrap();
+  try {
+    await dbBootstrap.init();
+    logger.log('✅ PostgreSQL ready');
+  } catch (error) {
+    logger.error('❌ PostgreSQL setup failed');
+    logger.error('   Make sure PostgreSQL is installed and running.');
+    logger.error(`   Connection: ${process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/erp_food_bites'}`);
+    logger.error(`   Error: ${error.message}`);
+    process.exit(1);
+  }
+
+  // ============================================================
+  // STEP 2: Start NestJS Application
+  // ============================================================
   const app = await NestFactory.create(AppModule);
 
   // Security headers
@@ -33,6 +57,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 5000;
   await app.listen(port);
-  console.log(`🚀 Server running on port ${port}`);
+  logger.log(`🚀 Server running on port ${port}`);
+  logger.log(`📍 API: http://localhost:${port}/api`);
 }
 bootstrap();

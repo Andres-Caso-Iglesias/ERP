@@ -14,7 +14,7 @@ Backend API para el sistema ERP Food Bites. Construido con NestJS, TypeScript y 
 ## Requisitos
 
 - Node.js >= 18
-- PostgreSQL >= 14
+- PostgreSQL >= 14 (must be installed and running)
 - npm >= 9
 
 ## Setup Rápido
@@ -27,12 +27,17 @@ npm install
 cp .env.example .env
 # Editar .env con tus datos de PostgreSQL
 
-# 3. Crear la base de datos
-psql -U postgres -c "CREATE DATABASE erp_food_bites"
-
-# 4. Arrancar en desarrollo
+# 3. Arrancar en desarrollo
 npm run start:dev
 ```
+
+**El servidor configura la base de datos automáticamente:**
+- ✅ Verifica que PostgreSQL esté corriendo
+- ✅ Crea la base de datos si no existe
+- ✅ Ejecuta las migraciones (crea tablas)
+- ✅ Carga datos de ejemplo en desarrollo
+
+No necesitás crear la base de datos manualmente — solo necesitás PostgreSQL corriendo.
 
 El servidor arranca en `http://localhost:5000/api`.
 
@@ -48,15 +53,43 @@ El servidor arranca en `http://localhost:5000/api`.
 
 ```
 src/
-├── main.ts                 # Entry point (helmet, CORS, validation)
+├── main.ts                 # Entry point (bootstrap + PostgreSQL auto-setup)
 ├── app.module.ts           # Root module
-├── database/               # Conexión PostgreSQL (global)
+├── database/
+│   ├── database-bootstrap.ts   # Auto-detect & init PostgreSQL
+│   ├── database.service.ts     # Connection pool (global)
+│   └── migrations/
+│       ├── 001_initial.sql     # Tablas: users, clients, inventory, sales, accounting, notifications
+│       └── 002_seed_data.sql   # Datos de ejemplo (dev)
 ├── auth/                   # JWT + bcrypt (register/login)
 ├── sales/                  # CRUD ventas
 ├── clients/                # CRUD clientes
 ├── inventory/              # CRUD inventario
 ├── accounting/             # CRUD contabilidad
 └── notifications/          # CRUD notificaciones
+```
+
+## Auto-Setup de PostgreSQL
+
+Al arrancar, el servidor ejecuta automáticamente:
+
+```
+🔍 Checking PostgreSQL setup...
+✅ PostgreSQL is running
+✅ Database "erp_food_bites" already exists
+🔄 Running migrations...
+   ✅ 001_initial.sql
+   ✅ 002_seed_data.sql
+✅ Migrations completed
+🚀 Server running on port 5000
+```
+
+Si PostgreSQL no está corriendo, el servidor muestra un error claro y se detiene:
+
+```
+❌ PostgreSQL setup failed
+   Make sure PostgreSQL is installed and running.
+   Connection: postgresql://postgres:postgres@localhost:5432/erp_food_bites
 ```
 
 ## Seguridad
@@ -89,8 +122,19 @@ Ver [API.md](./API.md) para documentación completa de cada endpoint.
 |----------|-------------|---------|
 | `PORT` | Puerto del servidor | 5000 |
 | `NODE_ENV` | Entorno (development/production) | development |
-| `DATABASE_URL` | Connection string de PostgreSQL | — |
-| `JWT_SECRET` | Secreto para firmar tokens JWT | — |
+| `DATABASE_URL` | Connection string de PostgreSQL | `postgresql://postgres:postgres@localhost:5432/erp_food_bites` |
+| `JWT_SECRET` | Secreto para firmar tokens JWT | — (required) |
 | `CORS_ORIGIN` | Origen permitido para CORS | http://localhost:3000 |
 
 Ver [.env.example](./.env.example) para más detalles.
+
+## Migraciones
+
+Los archivos SQL en `src/database/migrations/` se ejecutan automáticamente al arrancar.
+
+Para agregar una nueva migración:
+1. Crear un archivo `.sql` en `src/database/migrations/` con el siguiente número (ej: `003_add_orders.sql`)
+2. Reiniciar el servidor
+3. La migración se ejecuta automáticamente
+
+**Formato de nombre**: `XXX_descripcion.sql` (ej: `001_initial.sql`, `002_seed_data.sql`)
